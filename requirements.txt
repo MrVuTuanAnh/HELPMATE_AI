@@ -9,7 +9,7 @@ faiss-cpu==1.7.2
 PyMuPDF==1.20.1
 
 # Web Framework - Choose one
-Flask==2.1.2
+Flask==2.2.5
 # Django==4.0.4
 
 # Other necessary libraries might include
