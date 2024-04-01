@@ -17,6 +17,8 @@ Make sure PyMuPDF is installed in your environment. If not, you can install it u
 sh
 Copy code
 pip install PyMuPDF
+
+
 Step 2: Python Code for PDF Parsing and Chunking
 python
 Copy code
