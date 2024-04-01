@@ -14,4 +14,4 @@ Flask==2.1.2
 
 # Other necessary libraries might include
 numpy==1.23.1
-torch==1.11.0
+torch==1.13.1
