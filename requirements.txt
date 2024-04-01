@@ -1,5 +1,5 @@
 # NLP and Machine Learning
-transformers==4.21.1
+transformers==4.36.0
 # Choose faiss-cpu or faiss-gpu depending on your hardware. If you're unsure, start with faiss-cpu.
 faiss-cpu==1.7.2
 # Use annoy for an alternative to faiss, if preferred
