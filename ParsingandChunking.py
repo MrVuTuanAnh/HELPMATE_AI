@@ -44,7 +44,7 @@ def process_pdf(pdf_path):
     return paragraphs
 
 # Path to your PDF file
-pdf_path = 'path/to/your/pdf/document.pdf'
+pdf_path = 'pdf_path = 'https://cdn.upgrad.com/uploads/production/585ca56a-6fe1-4b93-903c-1c1a1de74bf1/Principal-Sample-Life-Insurance-Policy.pdf''
 paragraphs = process_pdf(pdf_path)
 
 # Example: Print the first 5 paragraphs to check
