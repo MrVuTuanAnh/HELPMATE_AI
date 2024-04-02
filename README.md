@@ -87,3 +87,8 @@ ERROR: Could not find a version that satisfies the requirement torch==1.11.0 (fr
 ERROR: No matching distribution found for torch==1.11.0
 
 
+
+
+https://github.com/SatyamSoni23/Smart-Question-Answering-System-on-Document
+
+
