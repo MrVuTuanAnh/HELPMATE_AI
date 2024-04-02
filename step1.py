@@ -31,7 +31,7 @@ def embed_chunks(chunks):
 
 # Main execution starts here
 if __name__ == "__main__":
-    pdf_path = 'path_to_your_document.pdf'  # Update this path to your PDF document
+    pdf_path = './Principal-Sample-Life-Insurance-Policy.pdf'  # Update this path to your PDF document
     document_text = extract_text(pdf_path)
     cleaned_text = clean_text(document_text)
     chunks = chunk_by_paragraph(cleaned_text)
