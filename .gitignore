@@ -3,3 +3,6 @@ helpmate_env/
 helpmate_env
 AI/
 AIAI/*
+__pycache__
+__pycache__/*
+__pycache__/
