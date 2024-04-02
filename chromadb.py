@@ -1,4 +1,4 @@
-from chromadb_client import ChromaDB
+from chromadb import ChromaClient
 
 # Initialize ChromaDB client
 chromadb = ChromaDB()
