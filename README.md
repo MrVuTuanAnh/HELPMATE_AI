@@ -8,6 +8,8 @@ python -m venv helpmate_env
 
 source helpmate_env/bin/activate
 
+source helpmate_env/bin/deactived
+
 pip install -r requirements.txt
 
 
@@ -74,3 +76,14 @@ paragraphs = process_pdf(pdf_path)
 # Example: Print the first 5 paragraphs to check
 for i, paragraph in enumerate(paragraphs[:5]):
     print(f"Paragraph {i+1}:", paragraph, "\n")
+
+
+
+
+
+
+ERROR: Ignored the following versions that require a different python version: 1.21.2 Requires-Python >=3.7,<3.11; 1.21.3 Requires-Python >=3.7,<3.11; 1.21.4 Requires-Python >=3.7,<3.11; 1.21.5 Requires-Python >=3.7,<3.11; 1.21.6 Requires-Python >=3.7,<3.11
+ERROR: Could not find a version that satisfies the requirement torch==1.11.0 (from versions: 1.13.0, 1.13.1, 2.0.0, 2.0.1, 2.1.0, 2.1.1, 2.1.2, 2.2.0, 2.2.1, 2.2.2)
+ERROR: No matching distribution found for torch==1.11.0
+
+
