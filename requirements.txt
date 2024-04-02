@@ -1,17 +1,17 @@
 # NLP and Machine Learning
-transformers==4.21.1
+transformers
 # Choose faiss-cpu or faiss-gpu depending on your hardware. If you're unsure, start with faiss-cpu.
-faiss-cpu==1.7.2
+faiss-cpu
 # Use annoy for an alternative to faiss, if preferred
-# annoy==1.17.0
+# annoy
 
 # PDF Parsing
-PyMuPDF==1.20.1
+PyMuPDF
 
 # Web Framework - Choose one
-Flask==2.1.2
+Flask
 # Django==4.0.4
 
 # Other necessary libraries might include
-numpy==1.23.1
-torch==1.11.0
+numpy
+torch
