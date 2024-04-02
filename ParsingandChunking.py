@@ -43,10 +43,12 @@ def process_pdf(pdf_path):
     
     return paragraphs
 
-# Path to your PDF file
-pdf_path = 'pdf_path = 'https://cdn.upgrad.com/uploads/production/585ca56a-6fe1-4b93-903c-1c1a1de74bf1/Principal-Sample-Life-Insurance-Policy.pdf''
+# Path to your PDF file (corrected URL assignment)
+pdf_path = './Principal-Sample-Life-Insurance-Policy.pdf'
+
+# Process the PDF and get the paragraphs
 paragraphs = process_pdf(pdf_path)
 
-# Example: Print the first 5 paragraphs to check
-for i, paragraph in enumerate(paragraphs[:5]):
+# Example: Print ALL paragraphs to check (uncomment the entire loop)
+for i, paragraph in enumerate(paragraphs):
     print(f"Paragraph {i+1}:", paragraph, "\n")
