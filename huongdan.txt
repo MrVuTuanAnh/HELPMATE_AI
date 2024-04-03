@@ -1,8 +1,0 @@
-upgrade pip
-
-pip install --upgrade pip
-
-cai dat thu vien can thiet
-
-pip install PyMuPDF
-pip install sentence-transformers
