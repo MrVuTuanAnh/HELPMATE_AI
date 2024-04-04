@@ -1,52 +1,41 @@
 import React, { useState } from 'react';
-import ReactHtmlParser from 'react-html-parser'; // Import thư viện này
 import './App.css';
 
 function App() {
   const [question, setQuestion] = useState('');
-  const [answers, setAnswers] = useState([]);
+  const [helpMateAnswer, setHelpMateAnswer] = useState('');
+  const [openAIAnswer, setOpenAIAnswer] = useState('');
 
-  const askQuestion = async (e) => {
-    e.preventDefault();
-    if (!question) return;
+  const askHelpMate = async () => {
+    // ... existing logic to call /ask/ endpoint
+  };
 
-    const response = await fetch('http://localhost:8000/ask/', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ question }),
-    });
-    const data = await response.json();
-
-    // Cập nhật câu trả lời để mỗi câu mới xuống hàng
-    const formattedAnswer = data.answer.replace(/\.\s/g, '.<br /><br />');
-
-    setAnswers([...answers, { question: question, answer: formattedAnswer }]);
-    setQuestion(''); // Clear input after submit
+  const askWithOpenAI = async () => {
+    try {
+      const response = await fetch('http://localhost:8000/ask_with_openai/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ question }),
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const data = await response.json();
+      setHelpMateAnswer(data.answer_from_helpmate); // Update with actual value
+      setOpenAIAnswer(data.answer_from_openai);
+    } catch (e) {
+      console.error("Error when calling askWithOpenAI:", e);
+      setOpenAIAnswer("Sorry, we're having trouble getting a response from OpenAI right now.");
+    }
   };
 
   return (
     <div className="App">
-      <h1>Mr.HelpMate AI Chatbox</h1>
-      <form onSubmit={askQuestion}>
-        <input
-          type="text"
-          value={question}
-          onChange={(e) => setQuestion(e.target.value)}
-          placeholder="Ask a question..."
-        />
-        <button type="submit">Ask</button>
-      </form>
-      <div className="chatbox">
-        {answers.map((entry, index) => (
-          <div key={index} className="chat-entry">
-            <div className="question">Q: {entry.question}</div>
-            {/* Sử dụng ReactHtmlParser để render câu trả lời đã được format */}
-            <div className="answer">A: {ReactHtmlParser(entry.answer)}</div>
-          </div>
-        ))}
-      </div>
+      {/* ... rest of your JSX code */}
+      <button onClick={askWithOpenAI}>Integrate OpenAI</button>
+      {/* ... update response display to include both answers */}
     </div>
   );
 }

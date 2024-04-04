@@ -9,12 +9,26 @@ from sentence_transformers import SentenceTransformer
 import numpy as np
 import faiss
 from scipy.spatial.distance import cosine
+from openai import OpenAI
+
+client = OpenAI(api_key=OPENAI_API_KEY)
+from dotenv import load_dotenv
+import os
+import traceback
+
+# Correct placement for environment variable loading
+load_dotenv()
+OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
+if not OPENAI_API_KEY:
+    raise ValueError("No OpenAI API key found. Please set OPENAI_API_KEY in your environment.")
+
+# Correctly set the OpenAI API key
 
 app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Cho phép tất cả các origin
+    allow_origins=["*"], 
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -93,6 +107,32 @@ async def ask(question: Question):
     except IndexError:
         raise HTTPException(status_code=404, detail="Answer not found")
     return {"question": question.question, "answer": answer}
+#
+#@app.post("/ask_openai/")
+#async def ask_openai(question: Question):
+#    try:
+#        openai_answer = openai.Completion.create(
+#            engine="text-davinci-003", # You may choose the engine you prefer
+#            prompt=question.question,
+#            max_tokens=150
+#        )
+#    except Exception as e:
+#        raise HTTPException(status_code=500, detail=str(e))
+#
+#    return {"question": question.question, "answer": openai_answer['choices'][0]['text']}
+#
+@app.post("/ask_with_openai/")
+async def ask_with_openai(question: Question):
+    try:
+        # Use openai module directly
+        response = client.completions.create(model="text-davinci-003",
+        prompt=question.question,
+        max_tokens=150)
+        answer_text = response.choices[0].text
+        return {"question": question.question, "answer": answer_text}
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail="An error occurred while processing the request.")
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
