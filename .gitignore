@@ -6,9 +6,7 @@ AIAI/*
 __pycache__
 __pycache__/*
 __pycache__/
-DRAW
-DRAW/
-DRAW/*
+
 node_modules
 node_modules/
 node_modules/*
