@@ -23,6 +23,21 @@
   font-size: calc(10px + 2vmin);
   color: white;
 }
+.answer {
+  text-align: left;
+  white-space: pre-wrap;
+  padding: 10px;
+  margin: 5px 0;
+  border-radius: 5px;
+}
+
+.helpmate-answer {
+  background-color: #f0f8ff; /* AliceBlue; adjust as needed */
+}
+
+.openai-answer {
+  background-color: #e6ffe6; /* Very pale green; adjust as needed */
+}
 
 .App-link {
   color: #61dafb;
