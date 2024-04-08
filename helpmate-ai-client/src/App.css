@@ -27,6 +27,16 @@
 .App-link {
   color: #61dafb;
 }
+.answer-section {
+  border: 1px solid #000; /* Adds a border around the answer section */
+  padding: 10px; /* Adds padding inside the answer section */
+  text-align: left; /* Aligns text to the left */
+  margin-top: 20px; /* Adds margin above the answer section */
+  white-space: pre-wrap; /* Preserves spaces and line breaks in the answer text */
+  max-width: 100%; /* Ensures the section does not exceed the width of its container */
+  box-sizing: border-box; /* Includes padding and border in the element's total width and height */
+}
+
 
 @keyframes App-logo-spin {
   from {
@@ -35,11 +45,4 @@
   to {
     transform: rotate(360deg);
   }
-}
-.answer-section {
-  border: 1px solid #000; /* creates a border around the answer section */
-  padding: 10px; /* adds some space inside the border */
-  text-align: left; /* aligns text to the left */
-  margin-top: 20px; /* adds space above the answer section */
-  white-space: pre-wrap; /* ensures that the formatting of the answer text is preserved */
 }
