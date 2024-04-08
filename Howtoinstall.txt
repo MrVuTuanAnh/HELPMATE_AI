@@ -1,7 +1,7 @@
 1. update all source in github.
 
     git pull;git fetch;git add -A ;git commit -a -m "Update all files"; git push --all;
-    
+
 2. install library dependence
 
     1. install nodejs version 21.7.1
@@ -18,5 +18,49 @@
 
         node --version
 
-    2. install requirements.txt 
+    2. install pip
+
+        sudo apt install python3-pip
+
+        sudo apt install python-is-python3
+
+    3. install environment
+
+        python -m venv helpmate_env
+
+        source helpmate_env/bin/activate
+
+        source helpmate_env/bin/deactived
+
+        python -m pip install --upgrade pip
+
+    4. install npm
+
+        sudo apt install npm
+
+    5. Install dependence
+
+        pip install -r requirements.txt
+
+    6. Install client & server
+
+        npm install buffer 
+        
+        npm install react-html-parser
+
+        npm install @craco/craco
+
+    7. install reacrt
+
+        npm install react
+
+    8. create apps
+
+        npx create-react-app helpmate-ai-client
+
+    9. start app
+
+        cd helpmate-ai-client
+        
+        npm start
 

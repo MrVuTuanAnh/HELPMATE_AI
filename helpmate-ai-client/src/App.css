@@ -36,28 +36,3 @@
     transform: rotate(360deg);
   }
 }
-.App {
-  text-align: center;
-  max-width: 600px;
-  margin: auto;
-}
-
-.chatbox {
-  margin-top: 20px;
-  text-align: left;
-  border: 1px solid #ccc;
-  padding: 10px;
-}
-
-.chat-entry {
-  margin-bottom: 20px;
-}
-
-.question {
-  margin-bottom: 5px;
-  font-weight: bold;
-}
-
-.answer {
-  margin-left: 20px;
-}
