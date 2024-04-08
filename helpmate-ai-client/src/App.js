@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import ReactHtmlParser from 'react-html-parser'; // Import thư viện này
+import ReactHtmlParser from 'react-html-parser';
 import './App.css';
 
 function App() {
@@ -10,19 +10,38 @@ function App() {
     e.preventDefault();
     if (!question) return;
 
-    const response = await fetch('http://localhost:8000/ask/', {
+    // Call both endpoints simultaneously
+    const helpmateResponsePromise = fetch('http://localhost:8000/ask/', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({ question }),
     });
-    const data = await response.json();
 
-    // Cập nhật câu trả lời để mỗi câu mới xuống hàng
-    const formattedAnswer = data.answer.replace(/\.\s/g, '.<br /><br />');
+    const openAIResponsePromise = fetch('http://localhost:8000/ask_with_openai/', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ question }),
+    });
 
-    setAnswers([...answers, { question: question, answer: formattedAnswer }]);
+    // Wait for both promises to resolve
+    const [helpmateResponse, openAIResponse] = await Promise.all([
+      helpmateResponsePromise,
+      openAIResponsePromise,
+    ]);
+
+    const helpmateData = await helpmateResponse.json();
+    const openAIData = await openAIResponse.json();
+
+    // Format both answers
+    const helpmateFormattedAnswer = helpmateData.answer.replace(/\.\s/g, '.<br /><br />');
+    const openAIFormattedAnswer = openAIData.answer.replace(/\.\s/g, '.<br /><br />');
+
+    // Update the answers state with the new answers
+    setAnswers([...answers, { question: question, helpmateAnswer: helpmateFormattedAnswer, openAIAnswer: openAIFormattedAnswer }]);
     setQuestion(''); // Clear input after submit
   };
 
@@ -42,8 +61,8 @@ function App() {
         {answers.map((entry, index) => (
           <div key={index} className="chat-entry">
             <div className="question">Q: {entry.question}</div>
-            {/* Sử dụng ReactHtmlParser để render câu trả lời đã được format */}
-            <div className="answer">A: {ReactHtmlParser(entry.answer)}</div>
+            <div className="answer">HelpMate AI: {ReactHtmlParser(entry.helpmateAnswer)}</div>
+            <div className="answer">OpenAI: {ReactHtmlParser(entry.openAIAnswer)}</div>
           </div>
         ))}
       </div>
