@@ -128,7 +128,7 @@ async def ask(question: Question):
 async def ask_with_openai(question: Question):
     try:
         # Use openai module directly
-        response = client.completions.create(model="text-davinci-003",
+        response = client.completions.create(model="gpt-3.5-turbo-instruct",
         prompt=question.question,
         max_tokens=150)
         answer_text = response.choices[0].text
