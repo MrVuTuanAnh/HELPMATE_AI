@@ -19,3 +19,6 @@ npm install react-html-parser --save
 
 uvicorn main:app --reload
 npm start
+
+
+https://platform.openai.com/account/api-keys
