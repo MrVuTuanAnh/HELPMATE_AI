@@ -1,7 +1,22 @@
 1. update all source in github.
+
     git pull;git fetch;git add -A ;git commit -a -m "Update all files"; git push --all;
-2. install library dependence
-    1. install nodejs version 21.7.1
     
+2. install library dependence
+
+    1. install nodejs version 21.7.1
+
+        apt install curl
+
+        curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.1/install.sh | bash
+
+        export NVM_DIR="$HOME/.nvm"
+        [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
+        [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"
+
+        nvm install v21.7.1
+
+        node --version
+
     2. install requirements.txt 
 
