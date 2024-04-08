@@ -48,7 +48,6 @@
         
         npm install react-html-parser
 
-        npm install @craco/craco
 
     7. install reacrt
 
@@ -61,6 +60,11 @@
     9. start app
 
         cd helpmate-ai-client
+
+        npm install @craco/craco
         
         npm start
 
+    10. install dotenv
+
+        pip install python-dotenv

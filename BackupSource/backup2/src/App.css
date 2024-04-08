@@ -36,10 +36,3 @@
     transform: rotate(360deg);
   }
 }
-.answer-section {
-  border: 1px solid #000; /* creates a border around the answer section */
-  padding: 10px; /* adds some space inside the border */
-  text-align: left; /* aligns text to the left */
-  margin-top: 20px; /* adds space above the answer section */
-  white-space: pre-wrap; /* ensures that the formatting of the answer text is preserved */
-}
