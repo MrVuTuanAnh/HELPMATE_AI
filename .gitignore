@@ -2,7 +2,7 @@ helpmate_env/*
 helpmate_env/
 helpmate_env
 AI/
-AIAI/*
+AI/*
 __pycache__
 __pycache__/*
 __pycache__/
