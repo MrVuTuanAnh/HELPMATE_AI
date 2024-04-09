@@ -1,3 +1,26 @@
+Build Mr.HelpMate AI
+If you prefer a structured project with a clear starting point, you can build a project in the insurance domain, similar the project you saw in the "retrieval augmented generation" session. The goal of the project will be to build a robust generative search system capable of effectively and accurately answering questions from a policy document. 
+
+pdf_path=./Principal-Sample-Life-Insurance-Policy.pdf
+
+The project should implement all the three layers effectively. It will be key to try out various strategies and experiments in various layers in order to build an effective search system. Let's explore what you need to do in each of the layers, and the possible experimentations that you can perform based on various choices.
+
+The Embedding Layer: The PDF document needs to be effectively processed, cleaned, and chunked for the embeddings. Here, the choice of the chunking strategy will have a large impact on the final quality of the retrieved results. So, make sure that you try out various stratgies and compare their performances.
+
+Another important aspect in the embedding layer is the choice of the embedding model. You can choose to embed your chunks using the OpenAI embedding model or any model from the SentenceTransformers library on HuggingFace.
+ 
+The Search Layer: Here, you first need to design at least 3 queries against which you will test your system. You need to understand and skim through the document, and accordingly come up with some queries, the answers to which can be found in the policy document.
+
+Next, you need to embed the queries and search your ChromaDB vector database against each of these queries. Implementing a cache mechanism is also mandatory.
+
+Finally, you need to implement the re-ranking block, and for this you can choose from a range of cross-encoding models on HuggingFace.
+ 
+The Generation Layer: In the generation layer, the final prompt that you design is the major component. Make sure that the prompt is exhaustive in its instructions, and the relevant information is correctly passed to the prompt. You may also choose to provide some few-shot examples in an attempt to improve the LLM output.
+
+
+
+
+
 Tôi sẽ bắt đầu bằng việc đọc và phân tích nội dung của file main.py bạn đã tải lên. Sau đó, tôi sẽ đề xuất cách tiếp cận để cải tiến việc gửi file PDF đến GPT cho việc trả lời các câu hỏi. Đầu tiên, hãy xem nội dung của file.
 
 File main.py mà bạn đã tải lên chứa một ứng dụng FastAPI để trích xuất văn bản từ file PDF, làm sạch và phân đoạn văn bản, sau đó sử dụng các embeddings văn bản và FAISS index để tìm kiếm và trả lời các câu hỏi. Nó cũng tích hợp khả năng gửi câu hỏi đến OpenAI để nhận câu trả lời.
