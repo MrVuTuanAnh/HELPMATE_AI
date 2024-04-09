@@ -8,21 +8,24 @@ import pickle
 from sentence_transformers import SentenceTransformer
 import numpy as np
 import faiss
-import concurrent.futures  # Để song song hóa việc trích xuất văn bản
+from scipy.spatial.distance import cosine
 from openai import OpenAI
 import traceback
 
 from dotenv import load_dotenv
 import os
 
-# Load environment variables
+# Correct placement for environment variable loading
 load_dotenv()
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 if not OPENAI_API_KEY:
     raise ValueError("No OpenAI API key found. Please set OPENAI_API_KEY in your environment.")
 
-# Setup OpenAI client
+from openai import OpenAI
+
+# Correctly set the OpenAI API key
 client = OpenAI(api_key=OPENAI_API_KEY)
+
 
 app = FastAPI()
 
@@ -37,29 +40,12 @@ app.add_middleware(
 class Question(BaseModel):
     question: str
 
-def load_cache():
-    try:
-        with open('cache.pkl', 'rb') as f:
-            cache = pickle.load(f)
-        return cache
-    except FileNotFoundError:
-        return None
-
-def save_cache(cache):
-    with open('cache.pkl', 'wb') as f:
-        pickle.dump(cache, f)
-
-def extract_text_from_pdf_concurrently(pdf_path):
+# Định nghĩa lại tất cả các hàm từ phase2.py ở đây
+def extract_text_from_pdf(pdf_path):
     doc = fitz.open(pdf_path)
-    text_parts = []
-
-    def extract_text(page):
-        return page.get_text()
-
-    with concurrent.futures.ThreadPoolExecutor() as executor:
-        text_parts = list(executor.map(extract_text, [page for page in doc]))
-
-    text = "".join(text_parts)
+    text = ""
+    for page in doc:
+        text += page.get_text()
     return text
 
 def clean_text(text):
@@ -86,52 +72,66 @@ def create_faiss_index(embeddings):
     return index
 
 def search_faiss(index, query_embedding, k=1):
-    """
-    Search for the k-nearest neighbors in the FAISS index for a given query embedding.
-
-    Parameters:
-    - index: The FAISS index.
-    - query_embedding: The embedding vector of the query.
-    - k: The number of nearest neighbors to search for.
-
-    Returns:
-    - Indices of the k-nearest neighbors in the index.
-    """
-    D, I = index.search(np.array([query_embedding]), k)
+    D, I = index.search(np.array([query_embedding]).astype('float32').reshape(1, -1), k)
     return I[0]
+
+def save_cache(data, file_name='cache.pkl'):
+    with open(file_name, 'wb') as f:
+        pickle.dump(data, f)
+
+def load_cache(file_name='cache.pkl'):
+    try:
+        with open(file_name, 'rb') as f:
+            return pickle.load(f)
+    except FileNotFoundError:
+        return None
 
 @app.post("/ask/")
 async def ask(question: Question):
     cache = load_cache()
-    if cache is None or 'index' not in cache:
-        pdf_path = "./your_pdf_file.pdf"  # Update this path to your PDF file
-        text = extract_text_from_pdf_concurrently(pdf_path)
+    if not cache:
+        # Thực hiện xử lý tài liệu và lưu vào cache nếu cần
+        pdf_path = "./Principal-Sample-Life-Insurance-Policy.pdf"  # Cập nhật đường dẫn file PDF
+        text = extract_text_from_pdf(pdf_path)
         cleaned_text = clean_text(text)
         chunks = chunk_text(cleaned_text)
-        embeddings = embed_text(chunks)
-        index = create_faiss_index(np.array(embeddings))
-        cache = {'chunks': chunks, 'embeddings': embeddings, 'index': index}
-        save_cache(cache)
+        embeddings = np.array(embed_text(chunks))
+        index = create_faiss_index(embeddings)
+        save_cache({'chunks': chunks, 'embeddings': embeddings, 'index': index})
     else:
         chunks = cache['chunks']
         embeddings = cache['embeddings']
         index = create_faiss_index(np.array(embeddings))
 
-    query_embedding = embed_text([question.question])[0]
-    closest_idx = search_faiss(index, query_embedding, 1)[0]
+    query_embedding = embed_text([question.question])
+    closest_idx = search_faiss(index, query_embedding, 1)
     try:
-        answer = chunks[closest_idx]
+        answer = chunks[closest_idx[0]]
     except IndexError:
         raise HTTPException(status_code=404, detail="Answer not found")
     return {"question": question.question, "answer": answer}
-
+#
+#@app.post("/ask_openai/")
+#async def ask_openai(question: Question):
+#    try:
+#        openai_answer = openai.Completion.create(
+#            engine="text-davinci-003", # You may choose the engine you prefer
+#            prompt=question.question,
+#            max_tokens=150
+#        )
+#    except Exception as e:
+#        raise HTTPException(status_code=500, detail=str(e))
+#
+#    return {"question": question.question, "answer": openai_answer['choices'][0]['text']}
+#
 @app.post("/ask_with_openai/")
 async def ask_with_openai(question: Question):
     try:
+        # Use openai module directly
         response = client.completions.create(model="gpt-3.5-turbo-instruct",
-                                             prompt=question.question,
-                                             max_tokens=150)
-        answer_text = response.choices[0].text.strip()
+        prompt=question.question,
+        max_tokens=150)
+        answer_text = response.choices[0].text
         return {"question": question.question, "answer": answer_text}
     except Exception as e:
         traceback.print_exc()
