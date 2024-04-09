@@ -19,7 +19,159 @@ The Generation Layer: In the generation layer, the final prompt that you design 
 
 
 
+--------------------------------------------------------
+    Lưu trữ dữ liệu trích xuất từ PDF vào ChromaDB ngay sau khi trích xuất.
+    Khi một câu hỏi được hỏi, hệ thống sẽ tìm kiếm trong cache trước. Nếu không tìm thấy trong cache, hệ thống sẽ query trong ChromaDB. Nếu kết quả không tìm thấy trong ChromaDB, hệ thống sẽ trích xuất lại từ file PDF và lưu vào ChromaDB.
 
+
+
+
+1. Thêm đoạn mã kiểm tra xem trong chromadb xem đã có dữ liệu lưu chưa. nếu có trích xuất pdf và lưu vào chromadb. (cần chắc chắn db phải có dữ liệu trước khi nhận câu hỏi.). nếu trong chromadb đã có thì tiếp các bước thứ 2 và 3
+2. ưu trữ dữ liệu trích xuất từ PDF vào ChromaDB ngay sau khi trích xuất.
+3. Khi một câu hỏi được hỏi, hệ thống sẽ tìm kiếm trong cache trước. Nếu không tìm thấy trong cache, hệ thống sẽ query trong ChromaDB. Nếu kết quả không tìm thấy trong ChromaDB, hệ thống sẽ trích xuất lại từ file PDF và lưu vào ChromaDB.
+
+
+-----------------------------------------------------------------------
+
+1. Function to check whether a word is present in a table or not for segregation of regular text and tables
+    same code:
+
+# Function to check whether a word is present in a table or not for segregation of regular text and tables
+
+def check_bboxes(word, table_bbox):
+    # Check whether word is inside a table bbox.
+    l = word['x0'], word['top'], word['x1'], word['bottom']
+    r = table_bbox
+    return l[0] > r[0] and l[1] > r[1] and l[2] < r[2] and l[3] < r[3]
+
+
+2. # Function to extract text from a PDF file.
+# 1. Declare a variable p to store the iteration of the loop that will help us store page numbers alongside the text
+# 2. Declare an empty list 'full_text' to store all the text files
+# 3. Use pdfplumber to open the pdf pages one by one
+# 4. Find the tables and their locations in the page
+# 5. Extract the text from the tables in the variable 'tables'
+# 6. Extract the regular words by calling the function check_bboxes() and checking whether words are present in the table or not
+# 7. Use the cluster_objects utility to cluster non-table and table words together so that they retain the same chronology as in the original PDF
+# 8. Declare an empty list 'lines' to store the page text
+# 9. If a text element in present in the cluster, append it to 'lines', else if a table element is present, append the table
+# 10. Append the page number and all lines to full_text, and increment 'p'
+# 11. When the function has iterated over all pages, return the 'full_text' list
+
+    same code: 
+                def extract_text_from_pdf(pdf_path):
+    p = 0
+    full_text = []
+
+
+    with pdfplumber.open(pdf_path) as pdf:
+        for page in pdf.pages:
+            page_no = f"Page {p+1}"
+            text = page.extract_text()
+
+            tables = page.find_tables()
+            table_bboxes = [i.bbox for i in tables]
+            tables = [{'table': i.extract(), 'top': i.bbox[1]} for i in tables]
+            non_table_words = [word for word in page.extract_words() if not any(
+                [check_bboxes(word, table_bbox) for table_bbox in table_bboxes])]
+            lines = []
+
+            for cluster in pdfplumber.utils.cluster_objects(non_table_words + tables, itemgetter('top'), tolerance=5):
+
+                if 'text' in cluster[0]:
+                    try:
+                        lines.append(' '.join([i['text'] for i in cluster]))
+                    except KeyError:
+                        pass
+
+                elif 'table' in cluster[0]:
+                    lines.append(json.dumps(cluster[0]['table']))
+
+
+            full_text.append([page_no, " ".join(lines)])
+            p +=1
+
+    return full_text
+
+3. # Retain only the rows with a text length of at least 10
+        samecode:
+                    insurance_pdfs_data = insurance_pdfs_data.loc[insurance_pdfs_data['Text_Length'] >= 10]
+                    insurance_pdfs_data.head()
+
+This concludes the chunking aspect also, as we can see that mostly the pages contain few hundred words, maximum going upto 1000. So, we don't need to chunk the documents further; we can perform the embeddings on individual pages. This strategy makes sense for 2 reasons:
+1. The way insurance documents are generally structured, you will not have a lot of extraneous information in a page, and all the text pieces in that page will likely be interrelated.
+2. We want to have larger chunk sizes to be able to pass appropriate context to the LLM during the generation layer.
+
+4. Generate and Store Embeddings using OpenAI and ChromaDB
+
+In this section, we will embed the pages in the dataframe through OpenAI's `text-embedding-ada-002` model, and store them in a ChromaDB collection.
+
+Same code: # Import the OpenAI Embedding Function into chroma
+
+            from chromadb.utils.embedding_functions import OpenAIEmbeddingFunction
+
+            # Call PersistentClient()
+
+            client = chromadb.PersistentClient(path=chroma_data_path)
+            # Set up the embedding function using the OpenAI embedding model
+
+            model = "text-embedding-ada-002"
+            embedding_function = OpenAIEmbeddingFunction(api_key=openai.api_key, model_name=model)
+
+            from chromadb.utils import embedding_functions
+            sentence_transformer_ef = embedding_functions.SentenceTransformerEmbeddingFunction(model_name="all-MiniLM-L6-v2")
+
+            #  Convert the page text and metadata from your dataframe to lists to be able to pass it to chroma
+
+            documents_list = insurance_pdfs_data["Page_Text"].tolist()
+            metadata_list = insurance_pdfs_data['Metadata'].tolist()
+
+# Add the documents and metadata to the collection alongwith generic integer IDs. You can also feed the metadata information as IDs by combining the policy name and page no.
+
+insurance_collection.add(
+    documents= documents_list,
+    ids = [str(i) for i in range(0, len(documents_list))],
+    metadatas = metadata_list
+)
+
+# Let's take a look at the first few entries in the collection
+
+insurance_collection.get(
+    ids = ['0','1','2'],
+    include = ['embeddings', 'documents', 'metadatas']
+)
+
+cache_collection = client.get_or_create_collection(name='Insurance_Cache', embedding_function=embedding_function)
+
+cache_collection.peek()
+
+
+
+once the text in the documents has been pre-processed and chunked, the next step is to generate vector representations using a suitable text embedding model. So far, you have been using the sentence transformer library and, specifically, the all-MiniLM-L6-V2 model to generate vector embeddings. For this demonstration, the embedding model being used is OpenAI's embedding model - specifically, the ada002 v2 model, which embeds text into a vector of 1,536 dimensions. We are using ChromaDB’s utilities functions to generate the vector embeddings through OpenAI’s model. For more information on this, refer to :
+
+https://docs.trychroma.com/embeddings#openai
+
+
+Once the embeddings have been generated, the next step is to store them in the vector database, which is ChromaDB. As covered in the previous sessions on ChromaDB, you need to first create the Chroma collections before you can start adding documents. Akshay used the get_or_create_collections method, which will create a collection if not already present, and fetch it from your system if it has been created and stored previously. Next, since we are using OpenAI embeddings and not Chroma's default embedding, you need to also pass your embedding function as an argument while creating the collection. Finally, the information that includes the document list, text and metadata information is passed to the chroma collection. Additionally, Akshay also created a Chroma collection to serve as cache, which we will explore in the upcoming segment.
+
+https://medium.com/@azhar.sayyad6/a-step-by-step-guide-to-parsing-pdfs-using-the-pdfplumber-library-in-python-c12d94ae9f07#:~:text=pdfplumber%20is%20a%20powerful%20library,data%20analysis%20and%20automation%20tasks.
+
+
+Semantic Search Layer
+
+As with any good system design, we need to consider a scenario when the application is scaled - suppose the number of documents increases or multiple users are using the application. Such a scenario opens up multiple concerns about the system’s performance
+
+- How will the system handle multiple queries simultaneously?
+- Is there scope to improve the system’s overall performance in search and retrieval?
+
+
+
+The first concern can be solved by using vector databases and scaling up the compute units (clusters/server) for the application. For the second concern, an improvement to the overall system design is required which can be achieved by implementing a cache collection in the vector database that stores previous queries and their results in the vector database. Let’s hear more on this from Akshay in the video below.
+
+
+
+
+--------------------------------------------------------------
 
 Tôi sẽ bắt đầu bằng việc đọc và phân tích nội dung của file main.py bạn đã tải lên. Sau đó, tôi sẽ đề xuất cách tiếp cận để cải tiến việc gửi file PDF đến GPT cho việc trả lời các câu hỏi. Đầu tiên, hãy xem nội dung của file.
 
@@ -67,6 +219,6 @@ Bạn có muốn tôi giúp bạn thực hiện cụ thể một trong những c
     Xử Lý Văn Bản Đồ Họa và Định Dạng Phức Tạp:
         Nếu PDF chứa nhiều hình ảnh, biểu đồ hoặc bảng, bạn có thể cân nhắc sử dụng thêm các công cụ như OCR (Optical Character Recognition) để trích xuất văn bản từ hình ảnh.
 
-        
+
 
 

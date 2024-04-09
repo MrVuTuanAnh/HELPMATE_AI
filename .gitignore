@@ -12,9 +12,11 @@ DRAW/*
 node_modules
 node_modules/
 node_modules/*
-helpmate-ai-client
-helpmate-ai-client/
-helpmate-ai-client/*
+helpmate-ai-client/node_modules
+helpmate-ai-client/node_modules/
+helpmate-ai-client/node_modules/*
+helpmate-ai-client/public
+helpmate-ai-client/public/*
 __pycache__
 __pycache__/
 __pycache__/*

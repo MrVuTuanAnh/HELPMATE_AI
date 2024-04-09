@@ -7,8 +7,6 @@ import re
 import pickle
 import numpy as np
 import faiss
-import chromadb
-import tempfile
 from scipy.spatial.distance import cosine
 import traceback
 import os
@@ -19,7 +17,7 @@ from dotenv import load_dotenv
 import pandas as pd
 from openai import OpenAI
 from chromadb import PersistentClient
-from sentence_transformers import SentenceTransformer, CrossEncoder
+from sentence_transformers import SentenceTransformer
 from chromadb.utils.embedding_functions import OpenAIEmbeddingFunction, SentenceTransformerEmbeddingFunction
 
 # Load environment variables
@@ -107,55 +105,6 @@ def load_cache(file_name='cache.pkl'):
             return pickle.load(f)
     except FileNotFoundError:
         return None
-
-# Load the SentenceTransformer model for embedding
-embedding_model = SentenceTransformer('all-MiniLM-L6-v2')
-
-# Load the CrossEncoder model for re-ranking
-rerank_model = CrossEncoder('cross-encoder/ms-marco-MiniLM-L-6-v2')
-
-# Initialize ChromaDB client
-chroma_client = chromadb.Client("chromadb_index")
-
-def process_pdf(pdf_path):
-    with pdfplumber.open(pdf_path) as pdf:
-        pages = [page.extract_text() for page in pdf.pages]
-    text = ' '.join(filter(None, pages))
-    return re.sub('\s+', ' ', text)
-
-def chunk_text(text, chunk_size=500):
-    return [text[i:i+chunk_size] for i in range(0, len(text), chunk_size)]
-
-def embed_text(chunks):
-    return embedding_model.encode(chunks, show_progress_bar=True)
-
-def search_chromadb(query_embedding, top_k=5):
-    results = chroma_client.search(query_embedding, top_k=top_k)
-    return results
-
-def rerank_results(chunks, query, results):
-    scores = rerank_model.predict([(query, chunks[result['id']]) for result in results])
-    reranked_results = sorted(zip(results, scores), key=lambda x: x[1], reverse=True)
-    return [result for result, score in reranked_results]
-
-@app.post("/search/")
-async def search(query: Query):
-    # Process and chunk the document text
-    document_text = process_pdf("./Principal-Sample-Life-Insurance-Policy.pdf")
-    chunks = chunk_text(document_text)
-
-    # Embed the query and document chunks
-    query_embedding = embedding_model.encode([query.text])[0]
-    document_embeddings = embed_text(chunks)
-
-    # Search in ChromaDB
-    search_results = search_chromadb(query_embedding)
-
-    # Re-rank the results
-    final_results = rerank_results(chunks, query.text, search_results)
-
-    # Generate response
-    return {"query": query.text, "results": final_results}
 
 # API endpoints Local
 @app.post("/ask/")
