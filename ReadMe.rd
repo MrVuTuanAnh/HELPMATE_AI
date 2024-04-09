@@ -22,3 +22,16 @@ npm start
 
 
 https://platform.openai.com/account/api-keys
+
+###########################################
+###########################################
+###########################################
+
+1. Buoc de setup environment
+   - Start local react app
+   - Lam the nao de main no chay duoc vs react
+
+Step 1: npm start
+Step 2: uvicorn main:app --reload
+
+2. ....

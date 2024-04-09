@@ -53,12 +53,14 @@ def extract_text_from_pdf(pdf_path):
     with pdfplumber.open(pdf_path) as pdf:
         for page in pdf.pages:
             page_no = f"Page {p+1}"
+
             tables = page.find_tables()
             table_bboxes = [i.bbox for i in tables]
             tables = [{'table': i.extract(), 'top': i.bbox[1]} for i in tables]
             non_table_words = [word for word in page.extract_words() if not any(
                 [check_bboxes(word, table_bbox) for table_bbox in table_bboxes])]
             lines = []
+            
             for cluster in pdfplumber.utils.cluster_objects(non_table_words + tables, itemgetter('top'), tolerance=5):
                 if 'text' in cluster[0]:
                     lines.append(' '.join([i['text'] for i in cluster]))
@@ -66,6 +68,7 @@ def extract_text_from_pdf(pdf_path):
                     lines.append(json.dumps(cluster[0]['table']))
             full_text.append([page_no, " ".join(lines)])
             p += 1
+            
     return full_text
 
 def clean_text(text):
