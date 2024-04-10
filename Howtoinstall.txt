@@ -44,9 +44,17 @@
 
     6. Install client & server
 
-        npm install buffer 
+        npm install buffer --save
         
-        npm install react-html-parser
+        or
+        
+        npm install --legacy-peer-deps buffer --save
+        
+        npm install react-html-parser --save
+
+        or 
+        
+        npm install --legacy-peer-deps react-html-parser@"*"
 
 
     7. install reacrt
