@@ -53,7 +53,7 @@
         npm install react-html-parser --save
 
         or 
-        
+
         npm install --legacy-peer-deps react-html-parser@"*"
 
 
@@ -76,4 +76,9 @@
     10. install dotenv
 
         pip install python-dotenv
+        
+        pip install --upgrade pip setuptools wheel
+        
+        pip install --upgrade fitz pdfplumber faiss-cpu sentence-transformers
+
 
