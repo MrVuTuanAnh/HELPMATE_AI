@@ -188,17 +188,19 @@ def main():
             })
             
             print(f"Found cache: \n {results_df}")
+        return results_df
 
     query = input("Enter your query: (What are the default benefits and provisions of the Group Policy?)")
-    exec_query_search(query)
+    result_df = exec_query_search(query)
+
     query2 = input("Enter your query: (What does it mean by 'the later of the Date of Issue'?)") 
-    exec_query_search(query2)
+    result_df2 = exec_query_search(query2)
+
     query3 = input("Enter your query: (What happens if a third-party service provider fails to provide the promised goods and services?)")
-    exec_query_search(query3)
-    
+    result_df3 = exec_query_search(query3)
+
     # Re-Ranking with cross encoder
     # Test the cross encoder model
-
     scores = cross_encoder.predict(
         [
             ['Does the insurance cover diabetic patients?', 'The insurance policy covers some pre-existing conditions including diabetes, heart diseases, etc. The policy does not howev'],
