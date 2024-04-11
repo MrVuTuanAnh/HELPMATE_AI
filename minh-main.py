@@ -191,13 +191,13 @@ def main():
         return results_df
 
     query = input("Enter your query: (What are the default benefits and provisions of the Group Policy?)")
-    result_df = exec_query_search(query)
+    results_df = exec_query_search(query)
 
     query2 = input("Enter your query: (What does it mean by 'the later of the Date of Issue'?)") 
-    result_df2 = exec_query_search(query2)
+    results_df2 = exec_query_search(query2)
 
     query3 = input("Enter your query: (What happens if a third-party service provider fails to provide the promised goods and services?)")
-    result_df3 = exec_query_search(query3)
+    results_df3 = exec_query_search(query3)
 
     # Re-Ranking with cross encoder
     # Test the cross encoder model
