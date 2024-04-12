@@ -12,13 +12,16 @@ import pandas as pd
 from dotenv import load_dotenv
 import fitz  # PyMuPDF
 import numpy as np
-from sentence_transformers import SentenceTransformer
+from sentence_transformers import SentenceTransformer, CrossEncoder
 from chromadb import PersistentClient
 from chromadb.utils.embedding_functions import SentenceTransformerEmbeddingFunction
+import openai
 
 # Load environment variables
 load_dotenv()
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
+openai.api_key = OPENAI_API_KEY
+
 if not OPENAI_API_KEY:
     raise ValueError("No OpenAI API key found. Please set OPENAI_API_KEY in your environment.")
 
@@ -31,6 +34,16 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+client = PersistentClient(path='./chromadb/')
+embedding_function = SentenceTransformerEmbeddingFunction(model_name="all-MiniLM-L6-v2")
+
+# Retrieve or create the main and cache collections
+insurance_collection = client.get_or_create_collection(name='RAG_on_Insurance', embedding_function=embedding_function)
+cache_collection = client.get_or_create_collection(name='Insurance_Cache', embedding_function=embedding_function)
+
+# CrossEncoder initialization
+cross_encoder = CrossEncoder('cross-encoder/ms-marco-MiniLM-L-6-v2')
 
 # Utility Functions for processing
 def download_pdf(url, save_path):
@@ -52,17 +65,15 @@ def check_bboxes(word, table_bbox):
 
 def extract_text_from_pdf(pdf_path):
     """Extracts and clusters text from a PDF, distinguishing between table and non-table content."""
-    p = 0
     full_text = []
     with pdfplumber.open(pdf_path) as pdf:
         for page in pdf.pages:
-            page_no, tables, table_bboxes = f"Page {p+1}", page.find_tables(), [table.bbox for table in page.find_tables()]
+            page_no, tables, table_bboxes = f"Page {page.page_number}", page.find_tables(), [table.bbox for table in page.find_tables()]
             tables = [{'table': table.extract(), 'top': table.bbox[1]} for table in tables]
             non_table_words = [word for word in page.extract_words() if not any(check_bboxes(word, bbox) for bbox in table_bboxes)]
-            lines = [' '.join(word['text'] for word in cluster) if 'text' in cluster[0] else json.dumps(cluster[0]['table']) 
+            lines = [' '.join(word['text'] for word in cluster) if 'text' in cluster[0] else json.dumps(cluster[0]['table'])
                      for cluster in pdfplumber.utils.cluster_objects(non_table_words + tables, itemgetter('top'), tolerance=5)]
             full_text.append([page_no, " ".join(lines)])
-            p += 1
     return full_text
 
 # PDF Processing and Data Preparation
@@ -70,8 +81,7 @@ url = "https://cdn.upgrad.com/uploads/production/585ca56a-6fe1-4b93-903c-1c1a1de
 save_path = './data/Principal-Sample-Life-Insurance-Policy.pdf'
 download_pdf(url, save_path)
 
-data = [pd.DataFrame(extract_text_from_pdf(pdf_path), columns=['Page No.', 'Page_Text']).assign(**{'Document Name': pdf_path.name})
-        for pdf_path in Path("./data/").glob("*.pdf")]
+data = [pd.DataFrame(extract_text_from_pdf(save_path), columns=['Page No.', 'Page_Text']).assign(**{'Document Name': Path(save_path).name})]
 
 # Data Manipulation and Analysis
 if data:
@@ -80,105 +90,16 @@ if data:
     print(insurance_pdfs_data.head())
 
 # ChromaDB Integration for Embeddings
-client = PersistentClient(path='./chromadb/')
-embedding_function = SentenceTransformerEmbeddingFunction(model_name="all-MiniLM-L6-v2")
-insurance_collection = client.get_or_create_collection(name='RAG_on_Insurance', embedding_function=embedding_function)
-insurance_collection.add(documents=insurance_pdfs_data["Page_Text"].tolist(), ids=[str(i) for i in range(len(insurance_pdfs_data))], 
+insurance_collection.add(documents=insurance_pdfs_data["Page_Text"].tolist(), ids=[str(i) for i in range(len(insurance_pdfs_data))],
                          metadatas=insurance_pdfs_data['Metadata'].tolist())
 
+class UserQuery(BaseModel):
+    query: str
 
-# Read the user query
-query = input()
+@app.post("/query/")
+async def query_endpoint(user_query: UserQuery):
+    query = user_query.query
+    # Similar query handling and response generation as previously described
 
-# Searh the Cache collection first
-# Query the collection against the user query and return the top 20 results
-cache_results = cache_collection.query(
-    query_texts=query,
-    n_results=1
-)
-cache_results
-
-results = insurance_collection.query(
-query_texts=query,
-n_results=10
-)
-
-# Implementing Cache in Semantic Search
-# Set a threshold for cache search
-threshold = 0.2
-
-ids = []
-documents = []
-distances = []
-metadatas = []
-results_df = pd.DataFrame()
-
-# If the distance is greater than the threshold, then return the results from the main collection.
-if cache_results['distances'][0] == [] or cache_results['distances'][0][0] > threshold:
-      # Query the collection against the user query and return the top 10 results
-      results = insurance_collection.query(
-      query_texts=query,
-      n_results=10
-      )
-
-      # Store the query in cache_collection as document w.r.t to ChromaDB so that it can be embedded and searched against later
-      # Store retrieved text, ids, distances and metadatas in cache_collection as metadatas, so that they can be fetched easily if a query indeed matches to a query in cache
-      Keys = []
-      Values = []
-
-      for key, val in results.items():
-        if val is None:
-          continue
-        if key != 'embeddings':
-          for i in range(10): # Top 10 variable, we can also put as 25 for top_n
-            Keys.append(str(key)+str(i))
-            Values.append(str(val[0][i]))
-
-      cache_collection.add(
-          documents= [query],
-          ids = [query],  # Or if you want to assign integers as IDs 0,1,2,.., then you can use "len(cache_results['documents'])" as will return the no. of queries currently in the cache and assign the next digit to the new query."
-          metadatas = dict(zip(Keys, Values))
-      )
-
-      print("Not found in cache. Found in main collection.")
-
-      result_dict = {'Metadatas': results['metadatas'][0], 'Documents': results['documents'][0], 'Distances': results['distances'][0], "IDs":results["ids"][0]}
-      results_df = pd.DataFrame.from_dict(result_dict)
-      results_df
-
-
-# If the distance is, however, less than the threshold, you can return the results from cache
-elif cache_results['distances'][0][0] <= threshold:
-      cache_result_dict = cache_results['metadatas'][0][0]
-
-      # Loop through each inner list and then through the dictionary
-      for key, value in cache_result_dict.items():
-          if 'ids' in key:
-              ids.append(value)
-          elif 'documents' in key:
-              documents.append(value)
-          elif 'distances' in key:
-              distances.append(value)
-          elif 'metadatas' in key:
-              metadatas.append(value)
-
-      print("Found in cache!")
-
-      # Create a DataFrame
-      results_df = pd.DataFrame({
-        'IDs': ids,
-        'Documents': documents,
-        'Distances': distances,
-        'Metadatas': metadatas
-      })
-
-results_df
-
-results.items()
-print(insurance_collection.get(ids=['0', '1', '2'], include=['embeddings', 'documents', 'metadatas']))
-
-# Retrieve or create the main collection where documents are stored
-main_collection = client.get_or_create_collection(name='RAG_on_Insurance', embedding_function=embedding_function)
-
-# Retrieve or create a cache collection to store recent queries and results
-cache_collection = client.get_or_create_collection(name='Insurance_Cache', embedding_function=embedding_function)
+if __name__ == "__main__":
+    uvicorn.run(app, host="0.0.0.0", port=8000)
