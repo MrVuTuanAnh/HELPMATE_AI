@@ -1,5 +1,6 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+import openai
 from pydantic import BaseModel
 import uvicorn
 import os
@@ -12,10 +13,17 @@ import pandas as pd
 from dotenv import load_dotenv
 import fitz  # PyMuPDF
 import numpy as np
+<<<<<<< HEAD
 from sentence_transformers import SentenceTransformer, CrossEncoder
 from chromadb import PersistentClient
 from chromadb.utils.embedding_functions import SentenceTransformerEmbeddingFunction
 import openai
+=======
+from sentence_transformers import CrossEncoder, SentenceTransformer
+from chromadb import PersistentClient
+from chromadb.utils.embedding_functions import OpenAIEmbeddingFunction, SentenceTransformerEmbeddingFunction
+
+>>>>>>> e711bd6e8b5ff09c94749ea129f467a27056bc41
 
 # Load environment variables
 load_dotenv()
@@ -35,6 +43,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+<<<<<<< HEAD
 client = PersistentClient(path='./chromadb/')
 embedding_function = SentenceTransformerEmbeddingFunction(model_name="all-MiniLM-L6-v2")
 
@@ -45,8 +54,28 @@ cache_collection = client.get_or_create_collection(name='Insurance_Cache', embed
 # CrossEncoder initialization
 cross_encoder = CrossEncoder('cross-encoder/ms-marco-MiniLM-L-6-v2')
 
+=======
+##################
+# GLOBAL VARIABLES
+
+client = PersistentClient(path='./chromadb/')  # ChromaDB Integration for Embeddings
+model = "text-embedding-ada-002"
+embedding_function = OpenAIEmbeddingFunction(api_key=OPENAI_API_KEY, model_name=model)
+sentence_transformer_ef = SentenceTransformerEmbeddingFunction(model_name="all-MiniLM-L6-v2")
+cache_collection = client.get_or_create_collection(name='Insurance_Cache', embedding_function=embedding_function)
+cross_encoder = CrossEncoder('cross-encoder/ms-marco-MiniLM-L-6-v2')
+
+#
+#
+#
+>>>>>>> e711bd6e8b5ff09c94749ea129f467a27056bc41
 # Utility Functions for processing
 def download_pdf(url, save_path):
+    print("=" * 20)
+    print("==== check_bboxes ====")
+    print("=" * 20)
+    print()
+
     """Downloads a PDF from a URL and saves it to the specified path."""
     try:
         response = requests.get(url)
@@ -58,12 +87,22 @@ def download_pdf(url, save_path):
         print(f"Failed to download file: {e}")
 
 def check_bboxes(word, table_bbox):
+    print("=" * 20)
+    print("==== check_bboxes ====")
+    print("=" * 20)
+    print()
+        
     """Checks if a word's bounding box is within a table's bounding box."""
     l = word['x0'], word['top'], word['x1'], word['bottom']
     r = table_bbox
     return l[0] > r[0] and l[1] > r[1] and l[2] < r[2] and l[3] < r[3]
 
 def extract_text_from_pdf(pdf_path):
+    print("=" * 20)
+    print("==== Extracting Text from PDF ====")
+    print("=" * 20)
+    print()
+
     """Extracts and clusters text from a PDF, distinguishing between table and non-table content."""
     full_text = []
     with pdfplumber.open(pdf_path) as pdf:
@@ -76,19 +115,31 @@ def extract_text_from_pdf(pdf_path):
             full_text.append([page_no, " ".join(lines)])
     return full_text
 
-# PDF Processing and Data Preparation
-url = "https://cdn.upgrad.com/uploads/production/585ca56a-6fe1-4b93-903c-1c1a1de74bf1/Principal-Sample-Life-Insurance-Policy.pdf"
-save_path = './data/Principal-Sample-Life-Insurance-Policy.pdf'
-download_pdf(url, save_path)
 
+<<<<<<< HEAD
 data = [pd.DataFrame(extract_text_from_pdf(save_path), columns=['Page No.', 'Page_Text']).assign(**{'Document Name': Path(save_path).name})]
+=======
+>>>>>>> e711bd6e8b5ff09c94749ea129f467a27056bc41
 
-# Data Manipulation and Analysis
-if data:
+def main():
+    # PDF Processing and Data Preparation
+    url = "https://cdn.upgrad.com/uploads/production/585ca56a-6fe1-4b93-903c-1c1a1de74bf1/Principal-Sample-Life-Insurance-Policy.pdf"
+    save_path = './data/Principal-Sample-Life-Insurance-Policy.pdf'
+    download_pdf(url, save_path)
+
+    data = [
+        pd.DataFrame(extract_text_from_pdf(pdf_path), columns=['Page No.', 'Page_Text']).assign(**{'Document Name': pdf_path.name})
+        for pdf_path in Path("./data/").glob("*.pdf")
+    ]
+
+    if not data:
+        raise ValueError("No PDFs found in the data directory.")
+    
+    # Data Manipulation and Analysis
     insurance_pdfs_data = pd.concat(data, ignore_index=True).loc[lambda df: df['Page_Text'].str.split().str.len() >= 10]
     insurance_pdfs_data['Metadata'] = insurance_pdfs_data.apply(lambda row: {'Policy_Name': row['Document Name'][:-4], 'Page_No.': row['Page No.']}, axis=1)
-    print(insurance_pdfs_data.head())
 
+<<<<<<< HEAD
 # ChromaDB Integration for Embeddings
 insurance_collection.add(documents=insurance_pdfs_data["Page_Text"].tolist(), ids=[str(i) for i in range(len(insurance_pdfs_data))],
                          metadatas=insurance_pdfs_data['Metadata'].tolist())
@@ -103,3 +154,109 @@ async def query_endpoint(user_query: UserQuery):
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
+=======
+    # ChromaDB Integration for Embeddings
+    insurance_collection = client.get_or_create_collection(name='RAG_on_Insurance', embedding_function=sentence_transformer_ef)
+    insurance_collection.add(
+        documents=insurance_pdfs_data["Page_Text"].tolist(), 
+        ids=[str(i) for i in range(len(insurance_pdfs_data))], 
+        metadatas=insurance_pdfs_data['Metadata'].tolist()
+    )
+
+    def exec_query_search(query):
+        if not query:
+            raise ValueError("No query provided.")
+
+        cache_results = cache_collection.query(query_texts=query, n_results=1)
+        print("Raw cache results: ", cache_results)
+        
+        results = insurance_collection.query(query_texts=query, n_results=10)
+        print("Raw results: ", results.items())
+        
+        threshold = 0.2
+        
+        ids = []
+        documents = []
+        distances = []
+        metadatas = []
+        results_df = pd.DataFrame()
+        
+        if cache_results['distances'][0] == [] or cache_results['distances'][0][0] > threshold:
+            results = insurance_collection.query(query_texts=query, n_results=10)
+        
+            keys = []
+            values = []
+            
+            for _key, _val in results.items():
+                if _val is None:
+                    continue
+                
+                if _key != 'embeddings':
+                    for i in range(10):
+                        keys.append(str(_key) + str(i))
+                        values.append(str(_val[0][i]))
+            
+            cache_collection.add(
+                documents=[query],
+                ids=[query],
+                metadatas=dict(zip(keys, values))
+            )
+        
+            print("Not found in cache. Found in main collection.")
+            result_dict = {'Metadatas': results['metadatas'][0], 'Documents': results['documents'][0], 'Distances': results['distances'][0], "IDs":results["ids"][0]}
+            results_df = pd.DataFrame.from_dict(result_dict)
+            print(f"Not found cache: \n {results_df}")
+        elif cache_results['distances'][0][0] <= threshold:
+            cache_result_dict = cache_results['metadatas'][0][0]
+            
+            for key, value in cache_result_dict.items():
+                if 'ids' in key:
+                    ids.append(value)
+                elif 'documents' in key:
+                    documents.append(value)
+                elif 'distances' in key:
+                    distances.append(value)
+                elif 'metadatas' in key:
+                    metadatas.append(value)
+            
+            print("Found in cache!")
+            results_df = pd.DataFrame({
+                'IDs': ids,
+                'Documents': documents,
+                'Distances': distances,
+                'Metadatas': metadatas
+            })
+            
+            print(f"Found cache: \n {results_df}")
+        return results_df
+
+    query = input("Enter your query: (What are the default benefits and provisions of the Group Policy?)")
+    results_df = exec_query_search(query)
+
+    query2 = input("Enter your query: (What does it mean by 'the later of the Date of Issue'?)") 
+    results_df2 = exec_query_search(query2)
+
+    query3 = input("Enter your query: (What happens if a third-party service provider fails to provide the promised goods and services?)")
+    results_df3 = exec_query_search(query3)
+
+    # Re-Ranking with cross encoder
+    # Test the cross encoder model
+    scores = cross_encoder.predict(
+        [
+            ['Does the insurance cover diabetic patients?', 'The insurance policy covers some pre-existing conditions including diabetes, heart diseases, etc. The policy does not howev'],
+            ['Does the insurance cover diabetic patients?', 'The premium rates for various age groups are given as follows. Age group (<18 years): Premium rate']
+        ]
+    )
+    
+    print(f'scores: {scores}')
+    
+    # .
+    # .
+    # .
+    # .
+
+    
+
+if __name__ == "__main__":
+    main()
+>>>>>>> e711bd6e8b5ff09c94749ea129f467a27056bc41
