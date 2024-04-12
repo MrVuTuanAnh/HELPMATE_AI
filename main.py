@@ -13,23 +13,14 @@ import pandas as pd
 from dotenv import load_dotenv
 import fitz  # PyMuPDF
 import numpy as np
-<<<<<<< HEAD
-from sentence_transformers import SentenceTransformer, CrossEncoder
-from chromadb import PersistentClient
-from chromadb.utils.embedding_functions import SentenceTransformerEmbeddingFunction
-import openai
-=======
 from sentence_transformers import CrossEncoder, SentenceTransformer
 from chromadb import PersistentClient
 from chromadb.utils.embedding_functions import OpenAIEmbeddingFunction, SentenceTransformerEmbeddingFunction
 
->>>>>>> e711bd6e8b5ff09c94749ea129f467a27056bc41
 
 # Load environment variables
 load_dotenv()
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
-openai.api_key = OPENAI_API_KEY
-
 if not OPENAI_API_KEY:
     raise ValueError("No OpenAI API key found. Please set OPENAI_API_KEY in your environment.")
 
@@ -43,18 +34,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-<<<<<<< HEAD
-client = PersistentClient(path='./chromadb/')
-embedding_function = SentenceTransformerEmbeddingFunction(model_name="all-MiniLM-L6-v2")
-
-# Retrieve or create the main and cache collections
-insurance_collection = client.get_or_create_collection(name='RAG_on_Insurance', embedding_function=embedding_function)
-cache_collection = client.get_or_create_collection(name='Insurance_Cache', embedding_function=embedding_function)
-
-# CrossEncoder initialization
-cross_encoder = CrossEncoder('cross-encoder/ms-marco-MiniLM-L-6-v2')
-
-=======
 ##################
 # GLOBAL VARIABLES
 
@@ -68,7 +47,6 @@ cross_encoder = CrossEncoder('cross-encoder/ms-marco-MiniLM-L-6-v2')
 #
 #
 #
->>>>>>> e711bd6e8b5ff09c94749ea129f467a27056bc41
 # Utility Functions for processing
 def download_pdf(url, save_path):
     print("=" * 20)
@@ -104,22 +82,20 @@ def extract_text_from_pdf(pdf_path):
     print()
 
     """Extracts and clusters text from a PDF, distinguishing between table and non-table content."""
+    p = 0
     full_text = []
     with pdfplumber.open(pdf_path) as pdf:
         for page in pdf.pages:
-            page_no, tables, table_bboxes = f"Page {page.page_number}", page.find_tables(), [table.bbox for table in page.find_tables()]
+            page_no, tables, table_bboxes = f"Page {p+1}", page.find_tables(), [table.bbox for table in page.find_tables()]
             tables = [{'table': table.extract(), 'top': table.bbox[1]} for table in tables]
             non_table_words = [word for word in page.extract_words() if not any(check_bboxes(word, bbox) for bbox in table_bboxes)]
-            lines = [' '.join(word['text'] for word in cluster) if 'text' in cluster[0] else json.dumps(cluster[0]['table'])
+            lines = [' '.join(word['text'] for word in cluster) if 'text' in cluster[0] else json.dumps(cluster[0]['table']) 
                      for cluster in pdfplumber.utils.cluster_objects(non_table_words + tables, itemgetter('top'), tolerance=5)]
             full_text.append([page_no, " ".join(lines)])
+            p += 1
     return full_text
 
 
-<<<<<<< HEAD
-data = [pd.DataFrame(extract_text_from_pdf(save_path), columns=['Page No.', 'Page_Text']).assign(**{'Document Name': Path(save_path).name})]
-=======
->>>>>>> e711bd6e8b5ff09c94749ea129f467a27056bc41
 
 def main():
     # PDF Processing and Data Preparation
@@ -139,22 +115,6 @@ def main():
     insurance_pdfs_data = pd.concat(data, ignore_index=True).loc[lambda df: df['Page_Text'].str.split().str.len() >= 10]
     insurance_pdfs_data['Metadata'] = insurance_pdfs_data.apply(lambda row: {'Policy_Name': row['Document Name'][:-4], 'Page_No.': row['Page No.']}, axis=1)
 
-<<<<<<< HEAD
-# ChromaDB Integration for Embeddings
-insurance_collection.add(documents=insurance_pdfs_data["Page_Text"].tolist(), ids=[str(i) for i in range(len(insurance_pdfs_data))],
-                         metadatas=insurance_pdfs_data['Metadata'].tolist())
-
-class UserQuery(BaseModel):
-    query: str
-
-@app.post("/query/")
-async def query_endpoint(user_query: UserQuery):
-    query = user_query.query
-    # Similar query handling and response generation as previously described
-
-if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8000)
-=======
     # ChromaDB Integration for Embeddings
     insurance_collection = client.get_or_create_collection(name='RAG_on_Insurance', embedding_function=sentence_transformer_ef)
     insurance_collection.add(
@@ -229,7 +189,38 @@ if __name__ == "__main__":
             
             print(f"Found cache: \n {results_df}")
         return results_df
+# Define the function to generate the response. Provide a comprehensive prompt that passes the user query and the top 3 results to the model
 
+    def generate_response(query, top_3_RAG):
+        """
+        Generate a response using GPT-3.5's ChatCompletion based on the user query and retrieved information.
+        """
+        messages = [
+                    {"role": "system", "content":  "You are a helpful assistant in the insurance domain who can effectively answer user queries about insurance policies and documents."},
+                    {"role": "user", "content": f"""You are a helpful assistant in the insurance domain who can effectively answer user queries about insurance policies and documents.
+                                                    You have a question asked by the user in '{query}' and you have some search results from a corpus of insurance documents in the dataframe '{top_3_RAG}'. These search results are essentially one page of an insurance document that may be relevant to the user query.
+
+                                                    The column 'documents' inside this dataframe contains the actual text from the policy document and the column 'metadata' contains the policy name and source page. The text inside the document may also contain tables in the format of a list of lists where each of the nested lists indicates a row.
+
+                                                    Use the documents in '{top_3_RAG}' to answer the query '{query}'. Frame an informative answer and also, use the dataframe to return the relevant policy names and page numbers as citations.
+
+                                                    Follow the guidelines below when performing the task.
+                                                    1. Try to provide relevant/accurate numbers if available.
+                                                    2. You don’t have to necessarily use all the information in the dataframe. Only choose information that is relevant.
+                                                    3. If the document text has tables with relevant information, please reformat the table and return the final information in a tabular in format.
+                                                    3. Use the Metadatas columns in the dataframe to retrieve and cite the policy name(s) and page numbers(s) as citation.
+                                                    4. If you can't provide the complete answer, please also provide any information that will help the user to search specific sections in the relevant cited documents.
+                                                    5. You are a customer facing assistant, so do not provide any information on internal workings, just answer the query directly.
+
+                                                    The generated response should answer the query directly addressing the user and avoiding additional information. If you think that the query is not relevant to the document, reply that the query is irrelevant. Provide the final response as a well-formatted and easily readable text along with the citation. Provide your complete response first with all information, and then provide the citations.
+                                                    """},
+                ]
+        response = openai.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=messages
+        )
+        return response.choices[0].message.content.split('\n')
+######
     query = input("Enter your query: (What are the default benefits and provisions of the Group Policy?)")
     results_df = exec_query_search(query)
 
@@ -250,7 +241,89 @@ if __name__ == "__main__":
     
     print(f'scores: {scores}')
     
-    # .
+    # Input (query, response) pairs for each of the top 20 responses received from the semantic search to the cross encoder
+    # Generate the cross_encoder scores for these pairs
+    cross_inputs = [[query, response] for response in results_df['Documents']]
+    cross_rerank_scores = cross_encoder.predict(cross_inputs)
+    print(cross_rerank_scores)
+    # Store the rerank_scores in results_df
+    results_df['Reranked_scores'] = cross_rerank_scores
+    print(results_df)
+    # Return the top 3 results from semantic search
+    top_3_semantic = results_df.sort_values(by='Distances')
+    top_3_semantic[:3]
+    # Return the top 3 results after reranking
+    top_3_rerank = results_df.sort_values(by='Reranked_scores', ascending=False)
+    top_3_rerank[:3]
+    print(top_3_rerank[:3])
+    top_3_RAG_q1 = top_3_rerank[["Documents", "Metadatas"]][:3]
+    print(top_3_RAG_q1)
+    #### For 2nd Querry
+    print(results_df2.head())
+    query2 = input("Enter your query: (What does it mean by 'the later of the Date of Issue'?)") 
+    # Input (query, response) pairs for each of the top 20 responses received from the semantic search to the cross encoder
+    # Generate the cross_encoder scores for these pairs
+    cross_inputs2 = [[query2, response] for response in results_df2['Documents']]
+    cross_rerank_scores2 = cross_encoder.predict(cross_inputs2)
+    print(cross_rerank_scores2)
+    # Store the rerank_scores in results_df
+    results_df2['Reranked_scores'] = cross_rerank_scores2
+    print(results_df2)
+    # Return the top 3 results from semantic search
+    top_3_semantic2_q2 = results_df2.sort_values(by='Distances')
+    top_3_semantic2_q2[:3]
+    print(top_3_semantic2_q2[:3])
+    # Return the top 3 results after reranking
+    top_3_rerank_q2 = results_df2.sort_values(by='Reranked_scores', ascending=False)
+    top_3_rerank_q2[:3]
+    print(top_3_rerank_q2[:3])
+    top_3_RAG_q2 = top_3_rerank_q2[["Documents", "Metadatas"]][:3]
+    print(top_3_RAG_q2)
+    ### For 3 query
+    query3 = input("Enter your query: (What happens if a third-party service provider fails to provide the promised goods and services?)")
+    results_df3.head()
+    print(results_df3.head())
+    # Input (query, response) pairs for each of the top 20 responses received from the semantic search to the cross encoder
+    # Generate the cross_encoder scores for these pairs
+    cross_inputs3 = [[query3, response] for response in results_df3['Documents']]
+    cross_rerank_scores3 = cross_encoder.predict(cross_inputs3)
+    cross_rerank_scores3
+    print(cross_rerank_scores3)
+    # Store the rerank_scores in results_df
+    results_df3['Reranked_scores'] = cross_rerank_scores3
+    results_df3
+    print(results_df3)
+    # Return the top 3 results from semantic search
+    top_3_semantic_q3 = results_df3.sort_values(by='Distances')
+    top_3_semantic_q3[:3]
+    print(top_3_semantic_q3[:3])
+    # Return the top 3 results after reranking
+    top_3_rerank_q3 = results_df3.sort_values(by='Reranked_scores', ascending=False)
+    top_3_rerank_q3[:3]
+    print(top_3_rerank_q3[:3])
+    top_3_RAG_q3 = top_3_rerank_q3[["Documents", "Metadatas"]][:3]
+    top_3_RAG_q3
+    print(top_3_RAG_q3)
+    ##### retrieval Augmented Generation
+    query = input("Enter your query: (What are the default benefits and provisions of the Group Policy?)")
+    # Generate the response - For Query 1
+    response = generate_response(query, top_3_RAG_q1)
+    print("Query 1: ","\n",query,"\n_________________________________________________________________________________________________________________\n_________________________________________________________________________________________________________________\n")
+    # Print the response
+    print("\n".join(response))
+    query2 = input("Enter your query: (What does it mean by 'the later of the Date of Issue'?)") 
+    # Generate the response - For Query 2
+    response2 = generate_response(query, top_3_RAG_q2)
+    print("Query 2: ","\n",query2,"\n_________________________________________________________________________________________________________________\n_________________________________________________________________________________________________________________\n")
+    # Print the response
+    print("\n".join(response2))
+    query3 = input("Enter your query: (What happens if a third-party service provider fails to provide the promised goods and services?)")
+    # Generate the response - For Query 1
+    response3 = generate_response(query, top_3_RAG_q3)
+    print("Query 3: ","\n",query3,"\n_________________________________________________________________________________________________________________\n_________________________________________________________________________________________________________________\n")
+    # Print the response
+    print("\n".join(response3))
+        # .
     # .
     # .
     # .
@@ -259,4 +332,3 @@ if __name__ == "__main__":
 
 if __name__ == "__main__":
     main()
->>>>>>> e711bd6e8b5ff09c94749ea129f467a27056bc41
