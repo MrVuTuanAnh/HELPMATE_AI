@@ -50,7 +50,7 @@ cross_encoder = CrossEncoder('cross-encoder/ms-marco-MiniLM-L-6-v2')
 # Utility Functions for processing
 def download_pdf(url, save_path):
     print("=" * 20)
-    print("==== check_bboxes ====")
+    print("==== download_pdf ====")
     print("=" * 20)
     print()
 
@@ -96,8 +96,60 @@ def extract_text_from_pdf(pdf_path):
     return full_text
 
 
+# Define the function to generate the response. Provide a comprehensive prompt that passes the user query and the top 3 results to the model
+
+# Define the function to generate the response. Provide a comprehensive prompt that passes the user query and the top 3 results to the model
+
+def generate_response(query, top_3_RAG):
+    """
+    Generate a response using GPT-3.5's ChatCompletion based on the user query and retrieved information.
+    """
+    messages = [
+        {
+            "role": "system", 
+            "content":  "You are a helpful assistant in the insurance domain who can effectively answer user queries about insurance policies and documents."
+        },
+        {
+            "role": "user", 
+            "content": f"""
+                You are a helpful assistant in the insurance domain who can effectively answer user queries about insurance policies and documents.
+                You have a question asked by the user in '{query}' and you have some search results from a corpus of insurance documents in the dataframe '{top_3_RAG}'. These search results are essentially one page of an insurance document that may be relevant to the user query.
+
+                The column 'documents' inside this dataframe contains the actual text from the policy document and the column 'metadata' contains the policy name and source page. The text inside the document may also contain tables in the format of a list of lists where each of the nested lists indicates a row.
+
+                Use the documents in '{top_3_RAG}' to answer the query '{query}'. Frame an informative answer and also, use the dataframe to return the relevant policy names and page numbers as citations.
+
+                Follow the guidelines below when performing the task.
+                1. Try to provide relevant/accurate numbers if available.
+                2. You don’t have to necessarily use all the information in the dataframe. Only choose information that is relevant.
+                3. If the document text has tables with relevant information, please reformat the table and return the final information in a tabular in format.
+                3. Use the Metadatas columns in the dataframe to retrieve and cite the policy name(s) and page numbers(s) as citation.
+                4. If you can't provide the complete answer, please also provide any information that will help the user to search specific sections in the relevant cited documents.
+                5. You are a customer facing assistant, so do not provide any information on internal workings, just answer the query directly.
+
+                The generated response should answer the query directly addressing the user and avoiding additional information. If you think that the query is not relevant to the document, reply that the query is irrelevant. Provide the final response as a well-formatted and easily readable text along with the citation. Provide your complete response first with all information, and then provide the citations.
+            """
+        },
+    ]
+
+    response = openai.chat.completions.create(
+        model="gpt-3.5-turbo",
+        messages=messages
+    )
+
+    return response.choices[0].message.content.split('\n')
+
+#################################################################################################
+#################################################################################################
+#################################################################################################
+
 
 def main():
+    print("===== Start Process =====")
+    print()
+    print()
+    print()
+
     # PDF Processing and Data Preparation
     url = "https://cdn.upgrad.com/uploads/production/585ca56a-6fe1-4b93-903c-1c1a1de74bf1/Principal-Sample-Life-Insurance-Policy.pdf"
     save_path = './data/Principal-Sample-Life-Insurance-Policy.pdf'
@@ -106,14 +158,26 @@ def main():
     data = [
         pd.DataFrame(extract_text_from_pdf(pdf_path), columns=['Page No.', 'Page_Text']).assign(**{'Document Name': pdf_path.name})
         for pdf_path in Path("./data/").glob("*.pdf")
-    ]
-
+    ]    
     if not data:
         raise ValueError("No PDFs found in the data directory.")
+    else:
+        print("= " * 30)
+        print(f"Data: \n{data}")
+        print("= " * 30)
+        print()
+        print()
+        print()    
     
     # Data Manipulation and Analysis
     insurance_pdfs_data = pd.concat(data, ignore_index=True).loc[lambda df: df['Page_Text'].str.split().str.len() >= 10]
     insurance_pdfs_data['Metadata'] = insurance_pdfs_data.apply(lambda row: {'Policy_Name': row['Document Name'][:-4], 'Page_No.': row['Page No.']}, axis=1)
+    print("= " * 30)
+    print(f"Insurance PDF: \n{insurance_pdfs_data}")
+    print("= " * 30)
+    print()
+    print()
+    print()
 
     # ChromaDB Integration for Embeddings
     insurance_collection = client.get_or_create_collection(name='RAG_on_Insurance', embedding_function=sentence_transformer_ef)
@@ -122,8 +186,20 @@ def main():
         ids=[str(i) for i in range(len(insurance_pdfs_data))], 
         metadatas=insurance_pdfs_data['Metadata'].tolist()
     )
-
+    
+    print("= " * 30)
+    print(f"Insurance Collections: \n{insurance_collection}")
+    print("= " * 30)
+    print()
+    print()
+    print()
+    
     def exec_query_search(query):
+        print("Excute Query Search")
+        print("=" * 30)
+        print("query: ", query)
+        print("=" * 30)
+        
         if not query:
             raise ValueError("No query provided.")
 
@@ -165,7 +241,6 @@ def main():
             print("Not found in cache. Found in main collection.")
             result_dict = {'Metadatas': results['metadatas'][0], 'Documents': results['documents'][0], 'Distances': results['distances'][0], "IDs":results["ids"][0]}
             results_df = pd.DataFrame.from_dict(result_dict)
-            print(f"Not found cache: \n {results_df}")
         elif cache_results['distances'][0][0] <= threshold:
             cache_result_dict = cache_results['metadatas'][0][0]
             
@@ -186,30 +261,106 @@ def main():
                 'Distances': distances,
                 'Metadatas': metadatas
             })
-            
-            print(f"Found cache: \n {results_df}")
+
+        print("= " * 30)
+        print(f"Query Search: \n{results_df}")
+        print("= " * 30)
+        print()
+        print()
+        print()
         return results_df
 
-    query = input("Enter your query: (What are the default benefits and provisions of the Group Policy?)")
-    results_df = exec_query_search(query)
+    query1 = input("Enter your query (What are the default benefits and provisions of the Group Policy?): ")
+    results_df1 = exec_query_search(query1)
 
-    query2 = input("Enter your query: (What does it mean by 'the later of the Date of Issue'?)") 
+    query2 = input("Enter your query (What does it mean by 'the later of the Date of Issue'?): ") 
     results_df2 = exec_query_search(query2)
 
-    query3 = input("Enter your query: (What happens if a third-party service provider fails to provide the promised goods and services?)")
+    query3 = input("Enter your query (What happens if a third-party service provider fails to provide the promised goods and services?): ")
     results_df3 = exec_query_search(query3)
 
-    # Re-Ranking with cross encoder
-    # Test the cross encoder model
-    scores = cross_encoder.predict(
-        [
-            ['Does the insurance cover diabetic patients?', 'The insurance policy covers some pre-existing conditions including diabetes, heart diseases, etc. The policy does not howev'],
-            ['Does the insurance cover diabetic patients?', 'The premium rates for various age groups are given as follows. Age group (<18 years): Premium rate']
-        ]
-    )
+    def exec_rerank_cross_encorder(query, results_df):
+        print("Execute Re-Ranking with Cross Encoder")
+        print(" " * 100)
+        
+        print("=" * 30)
+        print("query: ", query)
+        print("results_df: ", results_df)
+        print("=" * 30)
+
+        # Re-Ranking with cross encoder
+        results_df.head()
+        
+        # Test the cross encoder model
+        # scores = cross_encoder.predict(
+        #     [
+        #         ['Does the insurance cover diabetic patients?', 'The insurance policy covers some pre-existing conditions including diabetes, heart diseases, etc. The policy does not howev'],
+        #         ['Does the insurance cover diabetic patients?', 'The premium rates for various age groups are given as follows. Age group (<18 years): Premium rate']
+        #     ]
+        # )
+        # print(f'scores: {scores}')
+        
+        cross_inputs = [[query, response] for response in results_df['Documents']]
+        
+        cross_rerank_scores = cross_encoder.predict(cross_inputs)
+        print(cross_rerank_scores)
+        
+        results_df['Reranked_scores'] = cross_rerank_scores
+        print(results_df)
+        
+        # Return the top 3 results from semantic search
+        top_3_semantic = results_df.sort_values(by='Distances')
+        print(top_3_semantic[:3])
+        
+        # Return the top 3 results after reranking
+
+        top_3_rerank = results_df.sort_values(by='Reranked_scores', ascending=False)
+        top_3_rerank[:3]
+        
+        top_3_RAG = top_3_rerank[["Documents", "Metadatas"]][:3]
+        print("= " * 30)
+        print(f"Top 3 Rank: \n{top_3_RAG}")
+        print("= " * 30)
+        print()
+        print()
+        print()
+        return top_3_RAG
+        
+    top_3_RAG_q1 = exec_rerank_cross_encorder(query1, results_df1)
+    top_3_RAG_q2 = exec_rerank_cross_encorder(query2, results_df2)
+    top_3_RAG_q3 = exec_rerank_cross_encorder(query3, results_df3)
+
     
-    print(f'scores: {scores}')
+    def exec_retrieval_augmented_generation(query, top_3_RAG):
+        print("Execute Re-Ranking with Cross Encoder")
+        print(" " * 100)
+        
+        print("=" * 30)
+        print("query: ", query)
+        print("top_3_RAG:\n", top_3_RAG)
+        print("=" * 30)
     
+        response = generate_response(query, top_3_RAG)
+        print(
+            "Query: ", "\n", query, 
+            "\n_________________________________________________________________________________________________________________\n_________________________________________________________________________________________________________________\n"
+        )
+        print("\n".join(response))
+        print(" " * 100)
+
+        print()
+        print()
+        print()
+    
+    exec_retrieval_augmented_generation(query1, top_3_RAG_q1)
+    exec_retrieval_augmented_generation(query2, top_3_RAG_q2)
+    exec_retrieval_augmented_generation(query3, top_3_RAG_q3)
+
+    print()
+    print()
+    print()
+    print("===== End Process =====")
+
     # .
     # .
     # .
