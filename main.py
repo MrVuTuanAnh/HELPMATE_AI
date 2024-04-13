@@ -209,7 +209,22 @@ def main():
     )
     
     print(f'scores: {scores}')
-    
+    # Input (query, response) pairs for each of the top 20 responses received from the semantic search to the cross encoder
+    # Generate the cross_encoder scores for these pairs
+
+    cross_inputs = [[query, response] for response in results_df['Documents']]
+    cross_rerank_scores = cross_encoder.predict(cross_inputs)
+
+    # Store the rerank_scores in results_df
+    results_df['Reranked_scores'] = cross_rerank_scores
+    # Return the top 3 results from semantic search
+    top_3_semantic = results_df.sort_values(by='Distances')
+    top_3_semantic[:3]
+    # Return the top 3 results after reranking
+    top_3_rerank = results_df.sort_values(by='Reranked_scores', ascending=False)
+    top_3_rerank[:3]
+    top_3_RAG_q1 = top_3_rerank[["Documents", "Metadatas"]][:3]
+    print(top_3_RAG_q1)
     # .
     # .
     # .
