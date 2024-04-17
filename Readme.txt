@@ -36,18 +36,6 @@ CONFIGURATION
 - Set up environment variables as needed for database and API connections.
 - Configure cache settings in the ChromaDB settings file.
 
-CONTRIBUTING
-------------
-- Fork the project repository.
-- Create your feature branch (git checkout -b feature/AmazingFeature).
-- Commit your changes (git commit -m 'Add some AmazingFeature').
-- Push to the branch (git push origin feature/AmazingFeature).
-- Open a pull request.
-
-LICENSE
--------
-Distributed under the MIT License. See `LICENSE` file for more information.
-
 CONTACT
 -------
 Project Link: https://github.com/MrVuTuanAnh/HELPMATE_AI
